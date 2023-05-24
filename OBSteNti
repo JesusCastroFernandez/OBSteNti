@@ -1,0 +1,71 @@
+import numpy as np
+from qiskit import QuantumCircuit, Aer, execute
+
+def grover_accelerated(search_space, target):
+    # Cálculo del número de iteraciones
+    num_iterations = int(np.pi / 4 * np.sqrt(len(search_space)))
+
+    # Creación del circuito cuántico
+    num_qubits = int(np.log2(len(search_space)))
+    qc = QuantumCircuit(num_qubits, num_qubits)
+
+    # Inicialización de los qubits en estado uniforme
+    qc.h(range(num_qubits))
+
+    # Oráculo de búsqueda
+    oracle = create_oracle(search_space, target)
+
+    # Difusión
+    diffusion = create_diffusion(num_qubits)
+
+    # Aplicación del algoritmo de Grover acelerado
+    for _ in range(num_iterations):
+        qc.append(oracle, range(num_qubits))
+        qc.append(diffusion, range(num_qubits))
+
+    # Medición de los qubits
+    qc.measure(range(num_qubits), range(num_qubits))
+
+    # Ejecución del circuito cuántico en el simulador
+    simulator = Aer.get_backend('qasm_simulator')
+    job = execute(qc, simulator, shots=1000)
+    result = job.result()
+    counts = result.get_counts()
+
+    # Encontrar el estado objetivo
+    for state, count in counts.items():
+        if state == target:
+            return state
+
+    return None
+
+def create_oracle(search_space, target):
+    # Construcción del oráculo cuántico
+    num_qubits = int(np.log2(len(search_space)))
+    oracle = QuantumCircuit(num_qubits)
+
+    for index, item in enumerate(search_space):
+        if item == target:
+            oracle.x(index)
+
+    return oracle
+
+def create_diffusion(num_qubits):
+    # Construcción de la difusión cuántica
+    diffusion = QuantumCircuit(num_qubits)
+
+    diffusion.h(range(num_qubits))
+    diffusion.append(create_oracle([0] * (2 ** num_qubits), 0), range(num_qubits))
+    diffusion.h(range(num_qubits))
+
+    return diffusion
+
+# Ejemplo de uso
+search_space = ['apple', 'banana', 'orange', 'pear']
+target = 'banana'
+
+result = grover_accelerated(search_space, target)
+if result:
+    print("Estado objetivo encontrado:", result)
+else:
+    print("Estado objetivo no encontrado.")
